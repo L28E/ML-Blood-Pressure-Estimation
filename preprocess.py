@@ -4,6 +4,7 @@ import cmd
 import os
 import numpy as np
 import pandas as pd
+from scipy import signal as sg
 from matplotlib import pyplot as plt
 
 banner = """                                                                          
@@ -13,7 +14,7 @@ banner = """
  / .___/_/   \___/     / .___/_/   \____/\___/\___/____/____/\____/_/     
 /_/                   /_/                                            
 
-Proprietary command line tool/module for preparing ECG and PPG signals. Type "help" or "?" to list commands.                    
+Proprietary command line tool/module for preparing ECG and PPG signals for further analysis. Type "help" or "?" to list commands.                    
 """
 
 help_text = """
@@ -25,9 +26,12 @@ help_text = """
 Documented commands (type help <command>):
 """          
 
-data=None
-column=None
-signal=None
+TIME_UNIT = 10**-3 # Let's tentatively assume time units are in ms.
+
+data = None
+column = None
+signal = None
+sample_rate = None
 
 # ===============================================================================================================================
 # HELPER FUNCTIONS, FILTERS, AND TRANSFORMS GO HERE
@@ -37,7 +41,8 @@ def _load(filename):
     "Loads the contents of the specified file into a numpy matrix" 
     
     #Lambda expression for the hex to int conversion
-    convert = lambda x: int(x, 16) or 0
+    #TODO: add graceful error handling for when the converter fails due to incomplete entries
+    convert = lambda x: int(x, 16)
     
     # A dictionary used to store the converters to apply for each column.
     # If we need to read from the files which are NOT hex coded, we could programmatically populate this dictionary based on the first row of the data file.
@@ -53,10 +58,25 @@ def _load(filename):
       'ECG': convert,
       'ETI': convert
     }        
-    
-    return pd.read_csv(filename, delimiter=",", header=1,converters=converter_dict)    
-    #return np.matrix(np.loadtxt(filename, dtype=int, delimiter=",",converters=converter_dict, skiprows=2))
+        
+    return pd.read_csv(filename, delimiter=",", header=1,converters=converter_dict)
 
+def _get_sample_rate(data):
+    "Calculates the sample rate from the time difference between samples."
+
+    # Since the time entries are converted from hex on load, we'll just observe the difference between the first two time entries.
+    period=(data['Time'][1]-data['Time'][0])*TIME_UNIT
+    return 1/period
+
+def _lowpass(signal, order, atten, corner):
+    "Applies a lowpass filter of the specified paramaters to the provided signal"
+
+    # Create the filter coeffs. For now we'll stick to a Chebyshev II, but we can change the filter or paramaterize it later if we need to.    
+    sos = sg.cheby2(order, atten, corner, btype='lowpass', analog=False, output='sos', fs=sample_rate) # use second-order sections to avoid numerical error
+    
+    # Apply the filter and return the output.
+    return sg.sosfilt(sos, signal)  
+   
 # Here's a template for a filter
 #    
 # def _filter(signal):
@@ -86,6 +106,7 @@ class PrePro_Cli(cmd.Cmd):
     def do_load(self, arg):
         """The start of the preprocessing workflow. Select the file which contains the data you want to process"""
         global data
+        global sample_rate
         
         if arg=='':
             print("no file specfied")            
@@ -95,6 +116,7 @@ class PrePro_Cli(cmd.Cmd):
             data = _load(arg.strip("'"))
             print(data.columns) #TODO: pretty print this
             print("data loaded!")
+            sample_rate = _get_sample_rate(data)
          
         return 
       
@@ -120,10 +142,41 @@ class PrePro_Cli(cmd.Cmd):
             print("Please select a signal first")
         else:       
             plt.plot(signal)
-            plt.show()
-            
+            plt.show()            
         return                
    
+    def do_showfs(self, arg):
+        "Display the sampling frequency"       
+        if data is None:
+            print("Please load data first")       
+        else:       
+            print(sample_rate)            
+        return
+
+    def do_lowpass(self, arg):
+        """Apply a (Chebyshev II) lowpass filter with the specified parameters. 
+usage: lowpass \x1B[3mFILTER_ORDER\x1B[0m \x1B[3mSTOP_BAND_ATTENUATION\x1B[0m \x1B[3mCORNER_FREQUENCY\x1B[0m
+ex: lowpass 30 40 20"""        
+        global signal
+        
+        if data is None:
+            print("Please load data first")       
+        elif signal is None:
+            print("Please select a signal first")
+        else: 
+            args=arg.split()      
+            y = _lowpass(signal,int(args[0]),int(args[1]),int(args[2]))   
+
+            plt.plot(y)
+            plt.show()
+    
+            if (input("Keep Changes? (y/n): ")=='y'):
+                signal = y
+                print("changes applied")        
+            else:
+                print("changes discarded")
+        return
+
     def do_write(self, arg):
         "Writes the current signal to a file in a machine readable format"       
         if data is None:
