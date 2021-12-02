@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal as sg
 from matplotlib import pyplot as plt
+import neurokit2 as nk
 
 banner = """                                                                          
     ____  ________        ____  _________  ________  ______________  _____
@@ -14,7 +15,7 @@ banner = """
  / .___/_/   \___/     / .___/_/   \____/\___/\___/____/____/\____/_/     
 /_/                   /_/                                            
 
-Proprietary command line tool/module for preparing ECG and PPG signals for further analysis. Type "help" or "?" to list commands.                    
+Command line tool/module for preparing ECG and PPG signals for further analysis. Type "help" or "?" to list commands.                    
 """
 
 help_text = """
@@ -68,7 +69,7 @@ def _get_sample_rate(data):
     period=(data['Time'][1]-data['Time'][0])*TIME_UNIT
     return 1/period
 
-def _lowpass(signal, order, atten, corner):
+def _lowpass(signal, order, atten, corner, sample_rate):
     "Applies a lowpass filter of the specified paramaters to the provided signal"
 
     # Create the filter coeffs. For now we'll stick to a Chebyshev II, but we can change the filter or paramaterize it later if we need to.    
@@ -77,6 +78,16 @@ def _lowpass(signal, order, atten, corner):
     # Apply the filter and return the output.
     return sg.sosfilt(sos, signal)  
    
+def _cleanECG(signal, sample_rate):
+    "Uses neurokit2 to clean an ECG signal"      
+    
+    return nk.ecg_clean(signal,sampling_rate=sample_rate, method="elgendi2010") 
+
+def _cleanPPG(signal, sample_rate):
+    "Uses neurokit2 to clean a PPG signal"      
+    
+    return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')    
+
 # Here's a template for a filter
 #    
 # def _filter(signal):
@@ -165,7 +176,49 @@ ex: lowpass 30 40 20"""
             print("Please select a signal first")
         else: 
             args=arg.split()      
-            y = _lowpass(signal,int(args[0]),int(args[1]),int(args[2]))   
+            y = _lowpass(signal,int(args[0]),int(args[1]),int(args[2]),sample_rate)   
+
+            plt.plot(y)
+            plt.show()
+    
+            if (input("Keep Changes? (y/n): ")=='y'):
+                signal = y
+                print("changes applied")        
+            else:
+                print("changes discarded")
+        return
+
+    def do_cleanecg(self, arg):
+        '''Uses neurokit2 to clean an ECG signal with the Elgendi method'''       
+        global signal
+        
+        if data is None:
+            print("Please load data first")       
+        elif signal is None:
+            print("Please select a signal first")
+        else:                   
+            y = _cleanECG(signal, sample_rate)   
+
+            plt.plot(y)
+            plt.show()
+    
+            if (input("Keep Changes? (y/n): ")=='y'):
+                signal = y
+                print("changes applied")        
+            else:
+                print("changes discarded")
+        return
+
+    def do_cleanppg(self, arg):
+        '''Uses neurokit2 to clean a PPG signal with the Elgendi method'''       
+        global signal
+        
+        if data is None:
+            print("Please load data first")       
+        elif signal is None:
+            print("Please select a signal first")
+        else:                   
+            y = _cleanPPG(signal, sample_rate)   
 
             plt.plot(y)
             plt.show()
