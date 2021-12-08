@@ -63,6 +63,12 @@ def _load(filename):
         
     return pd.read_csv(filename, delimiter=",", header=1,converters=converter_dict)
 
+def _select(column,data):
+    "Makes a true copy of the specified column using its heading in the provided data set (a Pandas data frame)" 
+    
+    #TODO: Should check if column is an index to avoid errors            
+    return np.copy(data[column])
+
 def _get_sample_rate(data):
     "Calculates the sample rate from the time difference between samples."
 
@@ -144,12 +150,10 @@ class PrePro_Cli(cmd.Cmd):
       
     def do_select(self, arg):
         "The column you wish to manipulate. Makes a deep copy of the original so you are free to manipulate the signal while retaining a copy of the original."       
-        global signal
-                 
-        #TODO: Should check if arg is an index to avoid errors
+        global signal                 
+        
         if data is not None:
-            # Make a true copy of the signal for manipulation        
-            signal=np.copy(data[arg])
+            signal=_select(arg,data)
             print("signal selected!") 
         else:
             print("Please load data first")               
