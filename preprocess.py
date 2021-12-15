@@ -8,6 +8,8 @@ from scipy import signal as sg
 from matplotlib import pyplot as plt
 import neurokit2 as nk
 import pywt as wt
+import antropy as ant
+import scipy.stats as scst
 
 banner = """                                                                          
     ____  ________        ____  _________  ________  ______________  _____
@@ -101,6 +103,23 @@ def _wavelet(signal):
 def _madev(d, axis=None):
     "Mean absolute deviation of a signal"
     return np.mean(np.absolute(d - np.mean(d, axis)), axis) 
+
+
+def _decompose(signal):
+    'Getting the features for the ecg signal'
+    global coeffs
+    signal = sg.decimate(signal,10)
+    signal = sg.decimate(signal,2)
+    coeffs = wt.wavedec(signal,'db8',level=2)
+
+    return coeffs
+
+def _sampen(L):
+    'Sample Entropy'
+    # Return SampEn
+    return ant.sample_entropy(L)
+
+
 
 # Here's a template for a filter
 #    
@@ -280,6 +299,31 @@ ex: lowpass 30 40 20"""
            else:
                print("changes discarded")
         return
+
+    def do_decompose(self,arg):
+        'Gets the morphological based features of a signal'
+        cD1, cD2, cA =  _decompose(signal)
+        yin = np.append(cA,cD1)
+        yin = np.append(yin,cD2)
+        print(yin)
+        print(len(yin))
+
+
+    def do_entropy(self,arg):
+        'Entropy based features'
+        y  = signal
+        value = _sampen(signal)
+        print(value)
+
+    def do_skew(self,arg):
+        'Calculate the skew of the signal'
+        value = scst.skew(signal)
+        print(value)
+
+    def do_kurt(self,arg):
+        'Kurtosis of the signal'
+        value = scst.kurtosis(signal)
+        print(value)
 
 #   Here's a template for a CLI command:
 #
