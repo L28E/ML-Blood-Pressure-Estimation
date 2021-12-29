@@ -7,6 +7,7 @@ import pandas as pd
 from scipy import signal as sg
 from matplotlib import pyplot as plt
 import neurokit2 as nk
+import pywt as wt
 
 banner = """                                                                          
     ____  ________        ____  _________  ________  ______________  _____
@@ -80,25 +81,35 @@ def _lowpass(signal, order, atten, corner, sample_rate):
    
 def _cleanECG(signal, sample_rate):
     "Uses neurokit2 to clean an ECG signal"      
-    
     return nk.ecg_clean(signal,sampling_rate=sample_rate, method="elgendi2010") 
 
 def _cleanPPG(signal, sample_rate):
-    "Uses neurokit2 to clean a PPG signal"      
-    
+    "Uses neurokit2 to clean a PPG signal"   
     return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')    
+
+def _wavelet(signal):
+    "Uses pywavelets to apply wavelet filtering"
+    wavelet = 'sym8'
+    level = 1
+    coeff = wt.wavedec(signal, wavelet, mode="per")
+    sigma = (1 / 0.6745) * _madev(coeff[-level])
+    uthresh = sigma * np.sqrt(2 * np.log(len(signal)))
+    coeff[1:] = (wt.threshold(i, value=uthresh, mode='hard') for i in coeff[1:])
+
+    return wt.waverec(coeff, wavelet, mode='per')
+
+def _madev(d, axis=None):
+    "Mean absolute deviation of a signal"
+    return np.mean(np.absolute(d - np.mean(d, axis)), axis) 
 
 # Here's a template for a filter
 #    
 # def _filter(signal):
 #     "A description of the filter" 
 #              
-#     Some math changing the signal...
-#     It's an array so it's gunna get passed by reference. That's fine though, the original signal is in the global data variable if we need it
-#     By that same coin we don't really need to pass the variable but its better to be explicit, expicially if this function is going to be called from outside this file     
+#     filtered_signal = some_function(signal)        
 #    
-#     return signal    
-        
+#     return filtered_signal       
 
 
 # ===============================================================================================================================
@@ -250,7 +261,27 @@ ex: lowpass 30 40 20"""
         with np.printoptions(threshold=np.inf):
             print(signal)    
             
-#   Here's a template for a CLI command
+    def do_wavelet(self, arg):
+        "Applies wavelet filtering to the signal" 
+        global signal
+
+        if data is None:
+            print("Please load data first")
+        elif signal is None:
+            print("Please select a signal first")
+        else:
+           y = _wavelet(signal)
+           plt.plot(y)
+           plt.show()
+
+           if (input("Keep Changes? (y/n): ") == 'y'):
+               signal = y
+               print("changes applied")
+           else:
+               print("changes discarded")
+        return
+
+#   Here's a template for a CLI command:
 #
 #   def do_filter(self, arg):
 #        "help text"      
@@ -261,8 +292,16 @@ ex: lowpass 30 40 20"""
 #        elif signal is None:
 #            print("Please select a signal first")
 #        else:       
-#           signal = _filter(signal) 
-#        return              
+#           y = _filter(signal)
+#           plt.plot(y)
+#           plt.show()
+#
+#           if (input("Keep Changes? (y/n): ") == 'y'):
+#               signal = y
+#               print("changes applied")
+#           else:
+#               print("changes discarded")
+#       return
 
 def main():
     cli = PrePro_Cli()
