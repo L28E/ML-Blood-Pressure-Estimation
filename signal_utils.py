@@ -1,5 +1,6 @@
 from pandas import read_csv
 import numpy as np
+import neurokit2 as nk
 
 TIME_UNIT = 10 ** -3
 
@@ -59,6 +60,14 @@ def _dump(signal):
     with np.printoptions(threshold=np.inf):
         print(signal)
 
-def _sqi(signal):
-    """Computes the signal quality index of a signal. 
-Used to determine the valididty of the signal after preprocessing and before feature extraction"""
+def _sqi(signal,fs):
+    """Computes the signal quality index of an ECG signal. 
+Used to determine the valididty of the signal after preprocessing and before feature extraction
+Neurokit only has a mehtod for assessing ECG SQI, so will have to evaluate sqi and assume that the PPG is similarly good or poor"""
+    sqi_arr=nk.ecg_quality(signal,sampling_rate=fs)
+
+    total=0
+    for x in sqi_arr:        
+        total+=x        
+
+    return total/(len(sqi_arr))
