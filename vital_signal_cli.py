@@ -178,6 +178,11 @@ ex: lowpass 30 40 20"""
                 print("changes discarded")
         return
 
+    def do_sqi(self,arg):
+        "Prints the signal quality index. Meant for ECG signals"
+        print(signal_utils._sqi(signal,sample_rate))
+        return    
+    
     def do_write(self, arg):
         "Writes the current signal to a file in a machine readable format"
         if data is None:
@@ -225,22 +230,35 @@ ex: lowpass 30 40 20"""
         yin = feature_extraction._decompose(signal)
         print(yin)
         print(len(yin))
+        return
 
     def do_entropy(self, arg):
         "Entropy based features"
         y = signal
         value = feature_extraction._sample_entropy(signal)
         print(value)
+        return
 
     def do_skew(self, arg):
         "Calculate the skew of the signal"
         value = feature_extraction._skew(signal)
         print(value)
+        return
 
     def do_kurt(self, arg):
         "Kurtosis of the signal"
         value = feature_extraction._kurt(signal)
         print(value)
+        return
+
+    def do_rr_interval(self,arg):
+        "RR Interval of an ECG signal"
+        print(feature_extraction._rr_interval(signal,sample_rate))
+
+    def do_pat(self,arg):
+        "pulse arrival time (between a PPG sys. peak and an ECG R peak)"
+        print(feature_extraction._pulse_arrival_time(data,sample_rate,"Red"))
+        return
 
 
 #   Here's a template for a CLI command:
