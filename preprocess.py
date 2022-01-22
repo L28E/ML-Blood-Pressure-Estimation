@@ -51,7 +51,6 @@ def _load(filename):
     # For now all the converters will be hex string to signed int.    
     converter_dict = {
       'Time': convert,
-      ###
       'Red': convert,
       'IR': convert,
       'Green': convert,
