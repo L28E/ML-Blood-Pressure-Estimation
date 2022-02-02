@@ -24,9 +24,17 @@ def _cleanECG(signal, sample_rate):
 
 
 def _cleanPPG(signal, sample_rate):
-    "Uses neurokit2 to clean a PPG signal"
-    return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')
+    "Uses neurokit2 to clean a PPG signal. Also inverts signal to give Real PPG waveform"
+    return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')*(-1)
 
+
+def _butter(signal, corner, sample_rate):
+    "Applies a Butterworth lowpass filter of the specified paramaters to the provided signal. Also inverts signal to give Real PPG waveform"
+
+    b, a = sg.butter(5, corner/(sample_rate/2), 'low')
+    
+    # Apply the filter and return the output.
+    return sg.filtfilt(b, a, signal)*(-1)
 
 def _wavelet(signal):
     "Uses pywavelets to apply wavelet filtering"

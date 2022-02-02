@@ -177,6 +177,30 @@ ex: lowpass 30 40 20"""
             else:
                 print("changes discarded")
         return
+    
+    def do_butter(self, arg):
+        """Apply a Butterworth lowpass filter with the specified parameters.
+usage: lowpass  \x1B[3mCORNER_FREQUENCY\x1B[0m
+ex: butter 4"""
+        global signal
+
+        if data is None:
+            print("Please load data first")
+        elif signal is None:
+            print("Please select a signal first")
+        else:
+            args = arg.split()
+            y = preprocessing._butter(signal, int(args[0]), sample_rate)
+
+            plt.plot(y)
+            plt.show()
+
+            if (input("Keep Changes? (y/n): ") == 'y'):
+                signal = y
+                print("changes applied")
+            else:
+                print("changes discarded")
+        return
 
     def do_sqi(self,arg):
         "Prints the signal quality index. Meant for ECG signals"
