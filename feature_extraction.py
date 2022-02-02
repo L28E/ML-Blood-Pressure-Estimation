@@ -10,10 +10,10 @@ import neurokit2 as nk
 # ===============================================================================================================================
 
 def _decompose(signal):
-    "Getting the features for the ecg signal"
-    global coeffs
+    "Getting the features for the ecg signal"    
     signal = sg.decimate(signal, 10)
-    signal = sg.decimate(signal, 2)
+    signal = sg.decimate(signal, 10)
+    signal = sg.decimate(signal, 10)
     coeffs = wt.wavedec(signal, 'db8', level=2)
     
     yin = np.append(coeffs[0],coeffs[2])
@@ -33,7 +33,7 @@ def _kurt(signal):
     return scst.kurtosis(signal)
 
 def _rr_interval(signal,fs):
-    """Returns the average number of samples between two peaks of the provided ECG signal.""" 
+    """Returns the average time difference between two peaks of the provided ECG signal.""" 
     # NOTE: The ppg_findpeaks method changed the values in the signal array!
     # Make a true copy, just to be safe.    
     peaks=nk.ecg_findpeaks(np.copy(signal),sampling_rate=fs,method="elgendi2010")["ECG_R_Peaks"]
@@ -43,7 +43,8 @@ def _rr_interval(signal,fs):
         diff=peaks[x+1]-peaks[x]
         total+=diff        
 
-    return (total/(len(peaks)-1))/fs
+    temp=total/(len(peaks)-1)
+    return temp/fs
 
 def _pulse_arrival_time(data,fs,ppg_channel):
     """Returns the average number of samples between an ECG peak and the proceeding PPG peak

@@ -6,6 +6,7 @@ import signal_utils
 import feature_extraction
 import preprocessing
 from matplotlib import pyplot as plt
+from pandas import DataFrame, read_csv
 
 banner = """                                                                          
        ___               __     __                     __         
@@ -52,7 +53,7 @@ class PrePro_Cli(cmd.Cmd):
         elif not os.path.isfile(arg.strip("'")):
             print("Not a file")
         else:
-            data = signal_utils._load(arg.strip("'"))
+            data = signal_utils._load_csv(arg.strip("'"))
             print(data.columns)  # TODO: pretty print this
             print("Data loaded!")
             sample_rate = signal_utils._get_sample_rate(data)
@@ -284,33 +285,145 @@ ex: butter 4"""
         print(feature_extraction._pulse_arrival_time(data,sample_rate,"Red"))
         return
 
+    def do_extract(self,arg):
+        "extracts 'em all. First arg is the directory with data, second arg is the csv with measured bp."    
+        global data
+        global sample_rate
+        global signal
 
-#   Here's a template for a CLI command:
-#
-#   def do_filter(self, arg):
-#        "help text"
-#        global signal
-#
-#        if data is None:
-#            print("Please load data first")
-#        elif signal is None:
-#            print("Please select a signal first")
-#        else:
-#           y = _filter(signal)
-#           plt.plot(y)
-#           plt.show()
-#
-#           if (input("Keep Changes? (y/n): ") == 'y'):
-#               signal = y
-#               print("changes applied")
-#           else:
-#               print("changes discarded")
-#       return
+        num_err=0
+        num_ppg=0
+        num_ecg=0
+        num_missing=0
+        num_empty=0
+        
+        args=arg.split(" ")
+
+        # Check that arg[0] is a valid directory
+        if args[0] == '':
+            print("No path specfied. Using the current directory.")            
+            args[0] = os.getcwd()
+            return
+        elif not os.path.isdir(args[0].strip("'")):
+            print("Not a path")
+            return
+
+        # Check that arg[1] is a valid file
+        if args[1] == '':
+            print("No file specfied")
+            return
+        elif not os.path.isfile(args[1].strip("'")):
+            print("Not a file")
+            return
+
+        # Open the spreadsheet with true blood pressure measurements
+        bp_data = read_csv(args[1].strip("'"), delimiter=",")
+
+        # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
+        ecg_columns=['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
+        'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12','D13','D14','D15','D16','D17','D18',
+        'D19','D20','D21','D22','D23','D24','D25','D26','D27','D28','D29','D30','D31','D32','D33','D34']
+        ecg_dataframe=DataFrame(columns=ecg_columns)
+
+        #TODO: ppg dataframe
+
+        # For every file in the directory (Assuming a flat file hierarchy) 
+        dir_list = os.listdir(args[0])   
+        files = [f for f in dir_list if f.endswith(".csv")]
+
+        for file in files:  
+
+            print("Now Extracting: " + file)
+
+            # Try to load the CSV into a dataframe
+            try:
+                data = signal_utils._load_csv(os.path.join(args[0],file))
+                sample_rate = signal_utils._get_sample_rate(data)                
+                    
+                # Get the real bp measurement
+                real_bp=bp_data[bp_data["Filename"].str.contains(file.strip(".csv"),regex=False)]                
+                
+                # Check for validity. We'll see what checks we REALLY need when the automation breaks :)
+                if data.empty:
+                    print("Empty data file!")
+                    num_empty+=1
+                    continue
+                elif real_bp.empty:
+                    print("No measured blood pressure found!")
+                    num_missing+=1
+                    continue      
+
+                # Extract different features based on the signal type.
+                if "ECG" in data.columns:                
+                    print("ECG data file")                    
+
+                    # Temporary dataframe for holding features as they are calculated
+                    temp_df=DataFrame(columns=ecg_columns)
+
+                    # Evaluate SQI  
+                    signal = preprocessing._cleanECG(data["ECG"], sample_rate)                    
+                    if signal_utils._sqi(signal,sample_rate) < 0.7:
+                        print("Poor quality signal. Skipping.")
+                        continue
+                                       
+                    # Get features 
+                    # TODO: FEATURES WHICH USE SAMPLE RATE ARE BORKED!
+                    temp_df.at[0,'HR']= 1/feature_extraction._rr_interval(signal,sample_rate)*60
+                    temp_df.at[0,'HRV']=0  #TODO
+                    temp_df.at[0,'RR']=feature_extraction._rr_interval(signal,sample_rate)
+                    temp_df.at[0,'PAT']=feature_extraction._pulse_arrival_time(data,sample_rate,"Red")
+                    temp_df.at[0,'ENT']=feature_extraction._sample_entropy(signal)
+                    temp_df.at[0,'SKEW']=feature_extraction._skew(signal)
+                    temp_df.at[0,'KURT']=feature_extraction._kurt(signal)
+                    
+                    D=feature_extraction._decompose(signal)
+                    for x in range(1,34):
+                        temp_df.at[0,'D'+str(x)]=D[x]
+
+                    # Add the filename and true blood pressure to the temporary dataframe
+                    temp_df.at[0,'Filename']=file
+                    temp_df.at[0,'SBP']=real_bp.get('SBP').item()
+                    temp_df.at[0,'DBP']=real_bp.get('DBP').item()
+
+                    # Append to output dataframe
+                    ecg_dataframe=ecg_dataframe.append(temp_df)
+                    num_ecg+=1
+
+                elif "Green" in data.columns:
+                    print("PPG data file") 
+                    
+                    #TODO: Evaluate the ppg qulity
+                    #TODO: get ppg
+                    num_ppg+=1
+                    continue     
+                else:
+                    print("Couldn't find an the expected columns")
+                    continue          
+            except KeyError:
+                # This happens when the time column cannot be found in the sample rate calculation. TODO: Need to resolve this
+                num_err+=1
+                print("Keyerror!")                
+            except ValueError:
+                # This happens when there are duplicate entries in the blood pressure spreadsheet. TODO: Need to remove them from the spreadsheet
+                num_err+=1
+                print("Value error!")            
+
+        # Write the output dataframe to a csv
+        ecg_dataframe.to_csv("ecg_Features.csv")
+
+        #TODO write ppg dataframe
+
+        print("\nnumber of errors: " + str(num_err))
+        print("number of signals w/o blood pressure: " + str(num_missing))
+        print("number of empty files: " + str(num_empty))
+        print("number of ppg files: " + str(num_ppg))
+        print("number of ecg files: " + str(num_ecg))        
+
+        return
 
 def main():
     cli = PrePro_Cli()
     cli.cmdloop()
-
 
 if __name__ == "__main__":
     main()
