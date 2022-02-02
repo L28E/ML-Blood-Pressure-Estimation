@@ -45,7 +45,7 @@ namespace VTLabAutoExtract
                 "Here's a powershell incantation which will do it for you. Make sure to replace the <source> and <dest> with file paths\n");
 
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine("Get -ChildItem -Path <source> -Recurse -File -Include *.txt,*.bin | Copy-Item -Destination <dest>\n");
+            Console.WriteLine("Get-ChildItem -Path <source> -Recurse -File -Include *.txt,*.bin | Copy-Item -Destination <dest>\n");
             Console.ResetColor();
             Console.WriteLine("There should be " + NUM_FILES.ToString() + " files in the destination. After you've done this, press any key to continue");
             

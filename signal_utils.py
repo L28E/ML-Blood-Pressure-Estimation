@@ -3,12 +3,13 @@ import numpy as np
 import neurokit2 as nk
 
 TIME_UNIT = 10 ** -3
+CSV_HEADER_ROW = 13
 
 # ===============================================================================================================================
 # HELPER FUNCTIONS, FILTERS, AND TRANSFORMS GO HERE
 # ===============================================================================================================================
 
-def _load(filename):
+def _load_txt(filename):
     "Loads the contents of the specified file into a numpy matrix"
 
     # Lambda expression for the hex to int conversion
@@ -32,6 +33,12 @@ def _load(filename):
 
     return read_csv(filename, delimiter=",", header=1, converters=converter_dict)
 
+def _load_csv(filename):
+    "Loads the contents of the specified csv into a numpy matrix."
+   
+    data = read_csv(filename, delimiter=",", header=CSV_HEADER_ROW) #Header in the csv files is the 16th row
+
+    return data
 
 def _get_sample_rate(data):
     "Calculates the sample rate from the time difference between samples."
