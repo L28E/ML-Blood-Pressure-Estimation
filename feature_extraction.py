@@ -11,7 +11,19 @@ import neurokit2 as nk
 
 def _decompose(signal):
     "Getting the features for the ecg signal"
-    signal = np.append(signal,signal)
+    sig = signal
+
+    if (2620 % len(sig) == 0):
+       signal = np.append(signal,signal)
+    else:
+        quo = 2620 // len(sig)
+        rem = 2620 % len(sig)
+        for i in range(quo-1):
+            signal = np.append(signal,sig)
+
+        signal = np.append(signal,sig[0:rem])
+    #signal = np.append(signal, signal)
+
     signal = sg.decimate(signal, 15)
     signal = sg.decimate(signal, 15)
     coeffs = wt.wavedec(signal, 'db8', level=0)
