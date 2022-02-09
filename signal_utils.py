@@ -74,8 +74,8 @@ def _sqi(signal,fs):
 Used to determine the valididty of the signal after preprocessing and before feature extraction
 Neurokit only has a mehtod for assessing ECG SQI, so will have to evaluate sqi and assume that the PPG is similarly good or poor"""
     sqi_arr=nk.ecg_quality(signal,sampling_rate=fs)
-    print(sqi_arr)
-    print(len(sqi_arr))
+    #print(sqi_arr)
+    #print(len(sqi_arr))
     num =0
     total=0
     for x in sqi_arr:        

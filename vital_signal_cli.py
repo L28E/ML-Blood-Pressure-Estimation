@@ -2,14 +2,16 @@
 
 import cmd
 import os
+import tkinter as tk
+from tkinter import filedialog
 
 import numpy as np
+from matplotlib import pyplot as plt
+from pandas import DataFrame, read_csv
 
 import signal_utils
 import feature_extraction
 import preprocessing
-from matplotlib import pyplot as plt
-from pandas import DataFrame, read_csv
 
 banner = """                                                                          
        ___               __     __                     __         
@@ -327,38 +329,25 @@ ex: butter 4"""
         return
 
     def do_extract(self,arg):
-        "extracts 'em all. First arg is the directory with data, second arg is the csv with measured bp."    
+        "extracts 'em all. First dialog is the directory with data, second dialog is the csv with measured bp."    
         global data
         global sample_rate
-        global signal
+        global signal     
 
         num_err=0
         num_ppg=0
         num_ecg=0
         num_missing=0
-        num_empty=0
+        num_empty=0        
         
-        args=arg.split(" ")
+        root = tk.Tk()
+        root.withdraw()               
 
-        # Check that arg[0] is a valid directory
-        if args[0] == '':
-            print("No path specfied. Using the current directory.")            
-            args[0] = os.getcwd()
-            return
-        elif not os.path.isdir(args[0].strip("'")):
-            print("Not a path")
-            return
-
-        # Check that arg[1] is a valid file
-        if args[1] == '':
-            print("No file specfied")
-            return
-        elif not os.path.isfile(args[1].strip("'")):
-            print("Not a file")
-            return
+        csv_dir= filedialog.askdirectory() 
+        bp_filepath=filedialog.askopenfilename()        
 
         # Open the spreadsheet with true blood pressure measurements
-        bp_data = read_csv(args[1].strip("'"), delimiter=",")
+        bp_data = read_csv(bp_filepath.strip("'"), delimiter=",")
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
         #ecg_columns=['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
@@ -370,7 +359,7 @@ ex: butter 4"""
         #TODO: ppg dataframe
 
         # For every file in the directory (Assuming a flat file hierarchy) 
-        dir_list = os.listdir(args[0])   
+        dir_list = os.listdir(csv_dir)   
         files = [f for f in dir_list if f.endswith(".csv")]
 
         for file in files:  
@@ -379,7 +368,7 @@ ex: butter 4"""
 
             # Try to load the CSV into a dataframe
             try:
-                data = signal_utils._load_csv(os.path.join(args[0],file))
+                data = signal_utils._load_csv(os.path.join(csv_dir,file))
                 sample_rate = signal_utils._get_sample_rate(data)                
                     
                 # Get the real bp measurement
