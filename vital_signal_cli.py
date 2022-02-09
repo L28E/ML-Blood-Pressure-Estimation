@@ -2,6 +2,9 @@
 
 import cmd
 import os
+
+import numpy as np
+
 import signal_utils
 import feature_extraction
 import preprocessing
@@ -206,7 +209,47 @@ ex: butter 4"""
     def do_sqi(self,arg):
         "Prints the signal quality index. Meant for ECG signals"
         print(signal_utils._sqi(signal,sample_rate))
-        return    
+        return
+
+    def do_segment(self,arg):
+        "Get individual heart beats"
+        global signal
+
+        alpha = signal_utils._seg(signal,sample_rate)
+        num = len(alpha)
+        tenpulse =  np.zeros([1310,1])
+        kSQ = np.zeros([num,1])
+        pSQ = np.zeros([num,1])
+        lastvalue=0
+
+        for acc in range(1,num,1):
+            stnum = str(acc)
+            signal  = alpha[stnum]["Signal"]
+
+            kSQI = signal_utils._kSQI(signal)
+            kSQ[acc - 1] = kSQI
+            pSQI = signal_utils._ecg_quality_pSQI(signal, sampling_rate=sample_rate)
+            pSQ[acc - 1] = pSQI
+
+            #print(f"kSQI:{kSQI}   pSQI:{pSQI}")
+
+        #Getting the best 10 pulses
+        for i in range(len(kSQ)):
+            if int(kSQ[i]) > 6.0:
+                if (kSQ[i+1] > 6) & (kSQ[i+2] > 6) & (kSQ[i+2] > 6)& (kSQ[i+3] > 6) & (kSQ[i+4] > 6) &(kSQ[i + 5] > 6) & (kSQ[i+6] > 6) & (kSQ[i+7] > 6)& (kSQ[i+8] > 6) & (kSQ[i+9] > 6):
+                    lastvalue=i
+                    break
+        j=0
+        #for j in range(1310):
+        for ac2 in range(lastvalue,lastvalue+10,1):
+            sig = alpha[str(ac2)]["Signal"]
+            for val in sig:
+                tenpulse[j] = val
+                j = j + 1
+
+        #print(tenpulse)
+        signal = tenpulse
+        return
     
     def do_write(self, arg):
         "Writes the current signal to a file in a machine readable format"
@@ -253,8 +296,6 @@ ex: butter 4"""
         #yin = np.append(cA, cD1)
         #yin = np.append(yin, cD2)
         yin = feature_extraction._decompose(signal)
-        print(yin)
-        print(len(yin))
         return
 
     def do_entropy(self, arg):
@@ -320,9 +361,10 @@ ex: butter 4"""
         bp_data = read_csv(args[1].strip("'"), delimiter=",")
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
-        ecg_columns=['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
-        'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12','D13','D14','D15','D16','D17','D18',
-        'D19','D20','D21','D22','D23','D24','D25','D26','D27','D28','D29','D30','D31','D32','D33','D34']
+        #ecg_columns=['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
+        #'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12','D13','D14','D15','D16','D17','D18',
+        #'D19','D20','D21','D22','D23','D24','D25','D26','D27','D28','D29','D30','D31','D32','D33','D34']
+        ecg_columns = ['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT']
         ecg_dataframe=DataFrame(columns=ecg_columns)
 
         #TODO: ppg dataframe
@@ -376,9 +418,9 @@ ex: butter 4"""
                     temp_df.at[0,'SKEW']=feature_extraction._skew(signal)
                     temp_df.at[0,'KURT']=feature_extraction._kurt(signal)
                     
-                    D=feature_extraction._decompose(signal)
-                    for x in range(1,34):
-                        temp_df.at[0,'D'+str(x)]=D[x]
+                    #D=feature_extraction._decompose(signal)
+                    #for x in range(1,34):
+                     #   temp_df.at[0,'D'+str(x)]=D[x]
 
                     # Add the filename and true blood pressure to the temporary dataframe
                     temp_df.at[0,'Filename']=file

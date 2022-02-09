@@ -1,6 +1,8 @@
 from pandas import read_csv
 import numpy as np
 import neurokit2 as nk
+from neurokit2 import signal_power
+from scipy import stats
 
 TIME_UNIT = 10 ** -3
 CSV_HEADER_ROW = 13
@@ -72,9 +74,45 @@ def _sqi(signal,fs):
 Used to determine the valididty of the signal after preprocessing and before feature extraction
 Neurokit only has a mehtod for assessing ECG SQI, so will have to evaluate sqi and assume that the PPG is similarly good or poor"""
     sqi_arr=nk.ecg_quality(signal,sampling_rate=fs)
-
+    print(sqi_arr)
+    print(len(sqi_arr))
+    num =0
     total=0
     for x in sqi_arr:        
         total+=x        
+    for j in sqi_arr:
+        if j != 0:
+            num = num + 1
 
     return total/(len(sqi_arr))
+
+def _seg(signal,fs):
+    return nk.ecg_segment(signal,sampling_rate=fs)
+
+def _kSQI(signal):
+    return stats.kurtosis(signal,fisher=True)
+
+def _ecg_quality_pSQI(
+    ecg_cleaned,
+    sampling_rate=1000,
+    window=1024,
+    num_spectrum=[5, 15],
+    dem_spectrum=[5, 40],
+    **kwargs
+):
+    """Power Spectrum Distribution of QRS Wave."""
+
+    psd = signal_power(
+        ecg_cleaned,
+        sampling_rate=sampling_rate,
+        frequency_band=[num_spectrum, dem_spectrum],
+        method="welch",
+        normalize=False,
+        window=window,
+        **kwargs
+    )
+
+    num_power = psd.iloc[0][0]
+    dem_power = psd.iloc[0][1]
+
+    return num_power / dem_power
