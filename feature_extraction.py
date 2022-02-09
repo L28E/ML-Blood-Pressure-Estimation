@@ -10,15 +10,15 @@ import neurokit2 as nk
 # ===============================================================================================================================
 
 def _decompose(signal):
-    "Getting the features for the ecg signal"    
-    signal = sg.decimate(signal, 10)
-    signal = sg.decimate(signal, 10)
-    signal = sg.decimate(signal, 10)
-    coeffs = wt.wavedec(signal, 'db8', level=2)
-    
-    yin = np.append(coeffs[0],coeffs[2])
-    yin = np.append(yin,coeffs[1])        
-    return yin
+    "Getting the features for the ecg signal"
+    signal = np.append(signal,signal)
+    signal = sg.decimate(signal, 15)
+    signal = sg.decimate(signal, 15)
+    coeffs = wt.wavedec(signal, 'db8', level=0)
+
+    #yin = np.append(coeffs[0],coeffs[2])
+    #yin = np.append(yin,coeffs[1])
+    return coeffs
 
 def _sample_entropy(L):
     "Sample Entropy"
