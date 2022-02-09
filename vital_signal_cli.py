@@ -219,7 +219,6 @@ ex: butter 4"""
 
         alpha = signal_utils._seg(signal,sample_rate)
         num = len(alpha)
-        tenpulse =  np.zeros([1310,1])
         kSQ = np.zeros([num,1])
         pSQ = np.zeros([num,1])
         lastvalue=0
@@ -242,8 +241,10 @@ ex: butter 4"""
                     lastvalue=i
                     break
         j=0
+        number = len(alpha["1"]["Signal"])
+        tenpulse = np.zeros([number*10, 1])
         #for j in range(1310):
-        for ac2 in range(lastvalue,lastvalue+10,1):
+        for ac2 in range(lastvalue+1,lastvalue+11,1):
             sig = alpha[str(ac2)]["Signal"]
             for val in sig:
                 tenpulse[j] = val
@@ -251,6 +252,7 @@ ex: butter 4"""
 
         #print(tenpulse)
         signal = tenpulse
+        print(len(signal))
         return
     
     def do_write(self, arg):
@@ -298,6 +300,7 @@ ex: butter 4"""
         #yin = np.append(cA, cD1)
         #yin = np.append(yin, cD2)
         yin = feature_extraction._decompose(signal)
+        print(yin)
         return
 
     def do_entropy(self, arg):
