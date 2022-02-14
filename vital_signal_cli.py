@@ -119,7 +119,7 @@ class vs_cli(cmd.Cmd):
             print(sample_rate)
         return
 
-    def do_lowpass(self, arg):
+    def do_cheby(self, arg):
         """Apply a (Chebyshev II) lowpass filter with the specified parameters.
 usage: lowpass \x1B[3mFILTER_ORDER\x1B[0m \x1B[3mSTOP_BAND_ATTENUATION\x1B[0m \x1B[3mCORNER_FREQUENCY\x1B[0m
 ex: lowpass 30 40 20"""
@@ -131,7 +131,7 @@ ex: lowpass 30 40 20"""
             print("Please select a signal first")
         else:
             args = arg.split()
-            y = preprocessing._lowpass(signal, int(args[0]), int(args[1]), int(args[2]), sample_rate)
+            y = preprocessing._cheby(signal, int(args[0]), int(args[1]), int(args[2]), sample_rate)
 
             plt.plot(y)
             plt.show()
@@ -292,9 +292,6 @@ ex: butter 4"""
 
     def do_decompose(self, arg):
         "Gets the morphological based features of a signal"
-        #cD1, cD2, cA = feature_extraction._decompose(signal)
-        #yin = np.append(cA, cD1)
-        #yin = np.append(yin, cD2)
         yin = feature_extraction._decompose(signal)
         print(yin)
         return
@@ -328,7 +325,26 @@ ex: butter 4"""
         num_ppg=0
         num_ecg=0
         num_missing=0
-        num_empty=0        
+        num_empty=0  
+
+        # args=arg.split(" ")
+
+        # # Check that arg[0] is a valid directory
+        # if args[0] == '':
+        #     print("No path specfied. Using the current directory.")            
+        #     args[0] = os.getcwd()
+        #     return
+        # elif not os.path.isdir(args[0].strip("'")):
+        #     print("Not a path")
+        #     return
+
+        # # Check that arg[1] is a valid file
+        # if args[1] == '':
+        #     print("No file specfied")
+        #     return
+        # elif not os.path.isfile(args[1].strip("'")):
+        #     print("Not a file")
+        #     return
         
         root = tk.Tk()
         root.withdraw()               
@@ -341,8 +357,7 @@ ex: butter 4"""
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
         ecg_columns=['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
-        'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']
-        #ecg_columns = ['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT']
+        'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']        
         ecg_dataframe=DataFrame(columns=ecg_columns)
 
         #TODO: ppg dataframe
@@ -407,7 +422,7 @@ ex: butter 4"""
                                 last_pulse=first_pulse+9
                                 break
                     else: 
-                        print("No nice pulses in that one! Skipping...")
+                        print("No set of nice pulses in that one. Skipping...")
                         continue
                     
                     # Get the first index of the first nice pulse, and the last index of the last nice pulse
@@ -415,7 +430,13 @@ ex: butter 4"""
                     end=segment_dict[str(last_pulse+1)]["Index"].iloc[-1]
 
                     # Truncate the whole dataset to the size of those 10 pulses
-                    data.truncate(before=start,after=end)
+                    data=data.truncate(before=start,after=end)
+                    data=data.reset_index()
+
+                    # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
+                    # ax1.plot(data["Time"],data["ECG"])
+                    # ax2.plot(data["Time"],data["Red"])
+                    # plt.show()
                      
                     # Get features                     
                     temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(data,sample_rate)
@@ -450,20 +471,25 @@ ex: butter 4"""
                 else:
                     print("Couldn't find an the expected columns")
                     continue          
-            except KeyError:
+            except KeyError as e:
                 # This happens when the time column cannot be found in the sample rate calculation.
                 num_err+=1
-                print("Keyerror!")                
-            except ValueError:
-                # This happens when there are duplicate entries in the blood pressure spreadsheet. TODO: Need to remove them from the spreadsheet
+                print(e)                   
+            except ValueError as e:
+                # This happens when there are duplicate entries in the blood pressure spreadsheet. 
                 num_err+=1
-                print("Value error!") 
-            except IndexError as e:
-                # write the file and then quit
-                print(e)
+                print(e) 
+            except IndexError as e:                                
                 num_err+=1
-                #ecg_dataframe.to_csv("ecg_Features.csv")
-                #return                           
+                print(e)                
+            except ZeroDivisionError as e:
+                num_err+=1
+                print(e)   
+                
+                # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
+                # ax1.plot(data["Time"],data["ECG"])
+                # ax2.plot(data["Time"],data["Red"])
+                # plt.show()                           
 
         # Write the output dataframe to a csv
         ecg_dataframe.to_csv("ecg_Features.csv")
