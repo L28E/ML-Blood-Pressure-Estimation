@@ -114,7 +114,6 @@ def _ecg_quality_pSQI(
     **kwargs
 ):
     """Power Spectrum Distribution of QRS Wave."""
-
     psd = signal_power(
         ecg_cleaned,
         sampling_rate=sampling_rate,
@@ -129,3 +128,8 @@ def _ecg_quality_pSQI(
     dem_power = psd.iloc[0][1]
 
     return num_power / dem_power
+
+def _get_ecg_peaks(signal,times,sample_rate):
+    peaks=nk.ecg_findpeaks(np.copy(signal),sampling_rate=sample_rate,method="elgendi2010")["ECG_R_Peaks"]
+    peak_times=times.iloc[peaks]
+    return peaks,peak_times

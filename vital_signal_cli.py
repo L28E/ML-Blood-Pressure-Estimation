@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import filedialog
 
 import numpy as np
+import neurokit2 as nk
 from matplotlib import pyplot as plt
 from pandas import DataFrame, read_csv
 
@@ -327,37 +328,47 @@ ex: butter 4"""
         num_missing=0
         num_empty=0  
 
-        # args=arg.split(" ")
+        args=arg.split(" ")        
 
-        # # Check that arg[0] is a valid directory
-        # if args[0] == '':
-        #     print("No path specfied. Using the current directory.")            
-        #     args[0] = os.getcwd()
-        #     return
-        # elif not os.path.isdir(args[0].strip("'")):
-        #     print("Not a path")
-        #     return
-
-        # # Check that arg[1] is a valid file
-        # if args[1] == '':
-        #     print("No file specfied")
-        #     return
-        # elif not os.path.isfile(args[1].strip("'")):
-        #     print("Not a file")
-        #     return
+        if len(args)==2:
+            # Arguments provided
+            csv_dir= args[0] 
+            bp_filepath=args[1]        
         
-        root = tk.Tk()
-        root.withdraw()               
+            # Check that arg[0] is a valid directory
+            if csv_dir == '':
+                print("No path specfied. Using the current directory.")            
+                csv_dir = os.getcwd()
+                return
+            elif not os.path.isdir(csv_dir.strip("'")):
+                print("Not a path")
+                return
 
-        csv_dir= filedialog.askdirectory() 
-        bp_filepath=filedialog.askopenfilename()        
+            # Check that arg[1] is a valid file
+            if bp_filepath == '':
+                print("No file specfied")
+                return
+            elif not os.path.isfile(bp_filepath.strip("'")):
+                print("Not a file")
+                return
+        elif len(args)==1:
+            # No arguments or not enough arguments. Use graphical selection
+            root = tk.Tk()
+            root.withdraw()
+
+            csv_dir= filedialog.askdirectory() 
+            bp_filepath=filedialog.askopenfilename()
+        else:
+            print("Wrong number of arguments") 
+            return
 
         # Open the spreadsheet with true blood pressure measurements
         bp_data = read_csv(bp_filepath.strip("'"), delimiter=",")
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
-        ecg_columns=['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
-        'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']        
+        ecg_columns=['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 
+                    'QRSd','PQ','QT','JT', 'ENT', 'SKEW', 'KURT',
+                    'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']        
         ecg_dataframe=DataFrame(columns=ecg_columns)
 
         #TODO: ppg dataframe
@@ -399,10 +410,6 @@ ex: butter 4"""
                     # Temporary dataframe for holding features as they are calculated
                     temp_df=DataFrame(columns=ecg_columns)                                   
                     
-                    #if signal_utils._sqi(signal,sample_rate) < 0.7:
-                    #    print("Poor quality signal. Skipping.")
-                    #    continue  
-                                    
                     # Get a few nice, consecutive pulses                                       
                     segment_dict = signal_utils._seg(data["ECG"],sample_rate) # Spits out a dictionary with every ECG pulse 
                     num_segments=len(segment_dict)
@@ -431,18 +438,26 @@ ex: butter 4"""
 
                     # Truncate the whole dataset to the size of those 10 pulses
                     data=data.truncate(before=start,after=end)
-                    data=data.reset_index()
+                    #data=data.reset_index()
 
                     # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
                     # ax1.plot(data["Time"],data["ECG"])
                     # ax2.plot(data["Time"],data["Red"])
-                    # plt.show()
-                     
+                    # plt.show()                     
+
+                    # Mark the various components of the ECG
+                    [peaks,peak_times]=signal_utils._get_ecg_peaks(data["ECG"],data["Time"],sample_rate) 
+                    _, points = nk.ecg_delineate(data["ECG"], peaks, sampling_rate=sample_rate)
+
                     # Get features                     
-                    temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(data,sample_rate)
-                    temp_df.at[0,'HRV']=feature_extraction._hrv(data,sample_rate)
+                    temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(peak_times)
+                    temp_df.at[0,'HRV']=feature_extraction._hrv(peak_times)
+                    temp_df.at[0,'RR']=feature_extraction._rr_interval(peaks,sample_rate)
                     temp_df.at[0,'PAT']=feature_extraction._pulse_arrival_time(data,sample_rate,"Red")
-                    temp_df.at[0,'RR']=feature_extraction._rr_interval(data["ECG"],sample_rate)                    
+                    temp_df.at[0,'QRSd']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_S_Peaks"]) 
+                    temp_df.at[0,'PQ']=feature_extraction._avg_time_interval(data["Time"],points["ECG_P_Onsets"],points["ECG_Q_Peaks"]) 
+                    temp_df.at[0,'QT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_T_Offsets"]) 
+                    temp_df.at[0,'JT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_S_Peaks"],points["ECG_T_Peaks"]) 
                     temp_df.at[0,'ENT']=feature_extraction._sample_entropy(data["ECG"])
                     temp_df.at[0,'SKEW']=feature_extraction._skew(data["ECG"])
                     temp_df.at[0,'KURT']=feature_extraction._kurt(data["ECG"])                   
@@ -484,7 +499,11 @@ ex: butter 4"""
                 print(e)                
             except ZeroDivisionError as e:
                 num_err+=1
-                print(e)   
+                print(e)
+            except KeyboardInterrupt:
+                print("Got Keyboard interrupt, stopping")
+                ecg_dataframe.to_csv("ecg_Features.csv")
+                return   
                 
                 # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
                 # ax1.plot(data["Time"],data["ECG"])
