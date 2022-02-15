@@ -1,6 +1,7 @@
 import antropy as ant
 import scipy.stats as scst
 from scipy import signal as sg
+import scipy.integrate
 import pywt as wt
 import numpy as np
 import neurokit2 as nk
@@ -126,6 +127,18 @@ def _avg_time_interval(time,a_indices,b_indices):
             a_time=time.iat[a_indices[x]]
 
             total=total+b_time-a_time
+            count=count+1 
+               
+    return total/count 
+
+def _avg_area_under_curve(signal,a_indices,b_indices):
+    total=0
+    count=0
+
+    for x in range(0,len(a_indices)):
+        if not np.isnan(a_indices[x]) and not np.isnan(b_indices[x]):                       
+            
+            total=total+scipy.integrate.simpson(signal.iloc[a_indices[x]:b_indices[x]])
             count=count+1 
                
     return total/count 

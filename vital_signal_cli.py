@@ -367,7 +367,9 @@ ex: butter 4"""
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
         ecg_columns=['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 
-                    'QRSd','PQ','QT','JT', 'ENT', 'SKEW', 'KURT',
+                    'QRSd','PQ','QT','JT', 
+                    'AUCqrs_pos','AUCqrs_neg', 'AUCjt_pos', 'AUCjt_neg',
+                    'ENT', 'SKEW', 'KURT',
                     'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']        
         ecg_dataframe=DataFrame(columns=ecg_columns)
 
@@ -458,6 +460,10 @@ ex: butter 4"""
                     temp_df.at[0,'PQ']=feature_extraction._avg_time_interval(data["Time"],points["ECG_P_Onsets"],points["ECG_Q_Peaks"]) 
                     temp_df.at[0,'QT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_T_Offsets"]) 
                     temp_df.at[0,'JT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_S_Peaks"],points["ECG_T_Peaks"]) 
+                    temp_df.at[0,'AUCqrs_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
+                    temp_df.at[0,'AUCqrs_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
+                    temp_df.at[0,'AUCjt_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
+                    temp_df.at[0,'AUCjt_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
                     temp_df.at[0,'ENT']=feature_extraction._sample_entropy(data["ECG"])
                     temp_df.at[0,'SKEW']=feature_extraction._skew(data["ECG"])
                     temp_df.at[0,'KURT']=feature_extraction._kurt(data["ECG"])                   
