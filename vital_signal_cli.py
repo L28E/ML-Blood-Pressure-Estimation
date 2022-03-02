@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
 import cmd
-from distutils.log import error
 import os
 import tkinter as tk
 from tkinter import filedialog
 
 import numpy as np
-import neurokit2 as nk
 from matplotlib import pyplot as plt
 from pandas import DataFrame, read_csv
 
@@ -41,9 +39,9 @@ sample_rate = None
 # CLI COMMANDS GO HERE
 # ===============================================================================================================================
 
-class vs_cli(cmd.Cmd):
+class PrePro_Cli(cmd.Cmd):
     intro = banner
-    prompt = "vs-cli: "
+    prompt = "pre-pro: "
     file = None
     doc_header = help_text
 
@@ -120,7 +118,7 @@ class vs_cli(cmd.Cmd):
             print(sample_rate)
         return
 
-    def do_cheby(self, arg):
+    def do_lowpass(self, arg):
         """Apply a (Chebyshev II) lowpass filter with the specified parameters.
 usage: lowpass \x1B[3mFILTER_ORDER\x1B[0m \x1B[3mSTOP_BAND_ATTENUATION\x1B[0m \x1B[3mCORNER_FREQUENCY\x1B[0m
 ex: lowpass 30 40 20"""
@@ -132,7 +130,7 @@ ex: lowpass 30 40 20"""
             print("Please select a signal first")
         else:
             args = arg.split()
-            y = preprocessing._cheby(signal, int(args[0]), int(args[1]), int(args[2]), sample_rate)
+            y = preprocessing._lowpass(signal, int(args[0]), int(args[1]), int(args[2]), sample_rate)
 
             plt.plot(y)
             plt.show()
@@ -208,6 +206,11 @@ ex: butter 4"""
                 print("changes applied")
             else:
                 print("changes discarded")
+        return
+
+    def do_sqi(self,arg):
+        "Prints the signal quality index. Meant for ECG signals"
+        print(signal_utils._sqi(signal,sample_rate))
         return
 
     def do_segment(self,arg):
@@ -293,6 +296,9 @@ ex: butter 4"""
 
     def do_decompose(self, arg):
         "Gets the morphological based features of a signal"
+        #cD1, cD2, cA = feature_extraction._decompose(signal)
+        #yin = np.append(cA, cD1)
+        #yin = np.append(yin, cD2)
         yin = feature_extraction._decompose(signal)
         print(yin)
         return
@@ -316,6 +322,15 @@ ex: butter 4"""
         print(value)
         return
 
+    def do_rr_interval(self,arg):
+        "RR Interval of an ECG signal"
+        print(feature_extraction._rr_interval(signal,sample_rate))
+
+    def do_pat(self,arg):
+        "pulse arrival time (between a PPG sys. peak and an ECG R peak)"
+        print(feature_extraction._pulse_arrival_time(data,sample_rate,"Red"))
+        return
+
     def do_extract(self,arg):
         "extracts 'em all. First dialog is the directory with data, second dialog is the csv with measured bp."    
         global data
@@ -326,51 +341,22 @@ ex: butter 4"""
         num_ppg=0
         num_ecg=0
         num_missing=0
-        num_empty=0  
-
-        args=arg.split(" ")        
-
-        if len(args)==2:
-            # Arguments provided
-            csv_dir= args[0] 
-            bp_filepath=args[1]        
+        num_empty=0        
         
-            # Check that arg[0] is a valid directory
-            if csv_dir == '':
-                print("No path specfied. Using the current directory.")            
-                csv_dir = os.getcwd()
-                return
-            elif not os.path.isdir(csv_dir.strip("'")):
-                print("Not a path")
-                return
+        root = tk.Tk()
+        root.withdraw()               
 
-            # Check that arg[1] is a valid file
-            if bp_filepath == '':
-                print("No file specfied")
-                return
-            elif not os.path.isfile(bp_filepath.strip("'")):
-                print("Not a file")
-                return
-        elif len(args)==1:
-            # No arguments or not enough arguments. Use graphical selection
-            root = tk.Tk()
-            root.withdraw()
-
-            csv_dir= filedialog.askdirectory() 
-            bp_filepath=filedialog.askopenfilename()
-        else:
-            print("Wrong number of arguments") 
-            return
+        csv_dir= filedialog.askdirectory() 
+        bp_filepath=filedialog.askopenfilename()        
 
         # Open the spreadsheet with true blood pressure measurements
         bp_data = read_csv(bp_filepath.strip("'"), delimiter=",")
 
         # Create an output dataframe with every available feature, a column for systolic pressure, diastolic pressure, and signal type 
-        ecg_columns=['Filename', 'SBP', 'DBP', 'REAL_HR', 'HR', 'HRV', 'RR', 'PAT', 
-                    'QRSd','PQ','QT','JT', 
-                    'AUCqrs_pos','AUCqrs_neg', 'AUCjt_pos', 'AUCjt_neg',
-                    'ENT', 'SKEW', 'KURT',
-                    'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12']        
+        #ecg_columns=['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT',
+        #'D1','D2','D3','D4','D5','D6','D7','D8','D9','D10','D11','D12','D13','D14','D15','D16','D17','D18',
+        #'D19','D20','D21','D22','D23','D24','D25','D26','D27','D28','D29','D30','D31','D32','D33','D34']
+        ecg_columns = ['Filename', 'SBP', 'DBP', 'HR', 'HRV', 'RR', 'PAT', 'ENT', 'SKEW', 'KURT']
         ecg_dataframe=DataFrame(columns=ecg_columns)
 
         #TODO: ppg dataframe
@@ -389,14 +375,14 @@ ex: butter 4"""
                 sample_rate = signal_utils._get_sample_rate(data)                
                     
                 # Get the real bp measurement
-                real_values=bp_data[bp_data["Filename"].str.contains(file.strip(".csv"),regex=False)]                
+                real_bp=bp_data[bp_data["Filename"].str.contains(file.strip(".csv"),regex=False)]                
                 
                 # Check for validity. We'll see what checks we REALLY need when the automation breaks :)
                 if data.empty:
                     print("Empty data file!")
                     num_empty+=1
                     continue
-                elif real_values.empty:
+                elif real_bp.empty:
                     print("No measured blood pressure found!")
                     num_missing+=1
                     continue      
@@ -405,116 +391,56 @@ ex: butter 4"""
                 if "ECG" in data.columns:                
                     print("ECG data file")                    
 
-                    # Clean both signals before proceeding  
-                    data["ECG"] = preprocessing._cleanECG(data["ECG"], sample_rate)
-                    data["Red"] = preprocessing._cleanPPG(data["Red"], sample_rate) 
-                    
                     # Temporary dataframe for holding features as they are calculated
-                    temp_df=DataFrame(columns=ecg_columns)                                   
-                    
-                    # Get a few nice, consecutive pulses                                       
-                    segment_dict = signal_utils._seg(data["ECG"],sample_rate) # Spits out a dictionary with every ECG pulse 
-                    num_segments=len(segment_dict)
+                    temp_df=DataFrame(columns=ecg_columns)
 
-                    # Evaluate the quality of each ECG pulse using Kurtosis
-                    kSQI_arr=np.zeros(num_segments)
-                    for x in range(1,num_segments):                        
-                        pulse = segment_dict[str(x)]["Signal"]
-                        kSQI_arr[x - 1] = signal_utils._kSQI(pulse)
-
-                    first_pulse=0
-                    #Get 10 consective (nice) pulses. Conceivably we could do this multiple times for each signal to increase the size of the data set.
-                    for i in range(len(kSQI_arr)-9):
-                        if int(kSQI_arr[i]) > 6.0:
-                            if (kSQI_arr[i+1] > 6) & (kSQI_arr[i+2] > 6) & (kSQI_arr[i+2] > 6)& (kSQI_arr[i+3] > 6) & (kSQI_arr[i+4] > 6) &(kSQI_arr[i + 5] > 6) & (kSQI_arr[i+6] > 6) & (kSQI_arr[i+7] > 6)& (kSQI_arr[i+8] > 6) & (kSQI_arr[i+9] > 6):
-                                first_pulse=i
-                                last_pulse=first_pulse+9
-                                break
-                    else: 
-                        print("No set of nice pulses in that one. Skipping...")
+                    # Evaluate SQI  
+                    signal = preprocessing._cleanECG(data["ECG"], sample_rate)                    
+                    if signal_utils._sqi(signal,sample_rate) < 0.7:
+                        print("Poor quality signal. Skipping.")
                         continue
-                    
-                    # Get the first index of the first nice pulse, and the last index of the last nice pulse
-                    start=segment_dict[str(first_pulse+1)]["Index"].iloc[0]
-                    end=segment_dict[str(last_pulse+1)]["Index"].iloc[-1]
-
-                    # Truncate the whole dataset to the size of those 10 pulses
-                    data=data.truncate(before=start,after=end)
-                    #data=data.reset_index()
-
-                    # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
-                    # ax1.plot(data["Time"],data["ECG"])
-                    # ax2.plot(data["Time"],data["Red"])
-                    # plt.show()                     
-
-                    # Mark the various components of the ECG
-                    [peaks,peak_times]=signal_utils._get_ecg_peaks(data["ECG"],data["Time"],sample_rate) 
-                    _, points = nk.ecg_delineate(data["ECG"], peaks, sampling_rate=sample_rate)
-
-                    # Get features                     
-                    temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(peak_times)
-                    temp_df.at[0,'HRV']=feature_extraction._hrv(peak_times)
-                    temp_df.at[0,'RR']=feature_extraction._rr_interval(peaks,sample_rate)
+                                       
+                    # Get features 
+                    # TODO: FEATURES WHICH USE SAMPLE RATE ARE BORKED!
+                    temp_df.at[0,'HR']= 1/feature_extraction._rr_interval(signal,sample_rate)*60
+                    temp_df.at[0,'HRV']=0  #TODO
+                    temp_df.at[0,'RR']=feature_extraction._rr_interval(signal,sample_rate)
                     temp_df.at[0,'PAT']=feature_extraction._pulse_arrival_time(data,sample_rate,"Red")
-                    temp_df.at[0,'QRSd']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_S_Peaks"]) 
-                    temp_df.at[0,'PQ']=feature_extraction._avg_time_interval(data["Time"],points["ECG_P_Onsets"],points["ECG_Q_Peaks"]) 
-                    temp_df.at[0,'QT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_T_Offsets"]) 
-                    temp_df.at[0,'JT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_S_Peaks"],points["ECG_T_Peaks"]) 
-                    temp_df.at[0,'AUCqrs_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
-                    temp_df.at[0,'AUCqrs_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
-                    temp_df.at[0,'AUCjt_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
-                    temp_df.at[0,'AUCjt_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
-                    temp_df.at[0,'ENT']=feature_extraction._sample_entropy(data["ECG"])
-                    temp_df.at[0,'SKEW']=feature_extraction._skew(data["ECG"])
-                    temp_df.at[0,'KURT']=feature_extraction._kurt(data["ECG"])                   
-
-                    D=feature_extraction._decompose(data["ECG"])[0]
-                    for x in range(1,12):
-                        temp_df.at[0,'D'+str(x)]=D[x-1]
+                    temp_df.at[0,'ENT']=feature_extraction._sample_entropy(signal)
+                    temp_df.at[0,'SKEW']=feature_extraction._skew(signal)
+                    temp_df.at[0,'KURT']=feature_extraction._kurt(signal)
+                    
+                    #D=feature_extraction._decompose(signal)
+                    #for x in range(1,34):
+                     #   temp_df.at[0,'D'+str(x)]=D[x]
 
                     # Add the filename and true blood pressure to the temporary dataframe
                     temp_df.at[0,'Filename']=file
-                    temp_df.at[0,'REAL_HR']=real_values.get('Real_HR').item()
-                    temp_df.at[0,'SBP']=real_values.get('SBP').item()
-                    temp_df.at[0,'DBP']=real_values.get('DBP').item()
+                    temp_df.at[0,'SBP']=real_bp.get('SBP').item()
+                    temp_df.at[0,'DBP']=real_bp.get('DBP').item()
 
                     # Append to output dataframe
                     ecg_dataframe=ecg_dataframe.append(temp_df)
                     num_ecg+=1
 
-                elif "Green" in data.columns or "GREEN" in data.columns:
+                elif "Green" in data.columns:
                     print("PPG data file") 
                     
-                    #TODO: Evaluate the ppg quality
+                    #TODO: Evaluate the ppg qulity
                     #TODO: get ppg
                     num_ppg+=1
                     continue     
                 else:
                     print("Couldn't find an the expected columns")
                     continue          
-            except KeyError as e:
-                # This happens when the time column cannot be found in the sample rate calculation.
+            except KeyError:
+                # This happens when the time column cannot be found in the sample rate calculation. TODO: Need to resolve this
                 num_err+=1
-                print(e)                   
-            except ValueError as e:
-                # This happens when there are duplicate entries in the blood pressure spreadsheet. 
+                print("Keyerror!")                
+            except ValueError:
+                # This happens when there are duplicate entries in the blood pressure spreadsheet. TODO: Need to remove them from the spreadsheet
                 num_err+=1
-                print(e) 
-            except IndexError as e:                                
-                num_err+=1
-                print(e)                
-            except ZeroDivisionError as e:
-                num_err+=1
-                print(e)
-            except KeyboardInterrupt:
-                print("Got Keyboard interrupt, stopping")
-                ecg_dataframe.to_csv("ecg_Features.csv")
-                return   
-                
-                # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
-                # ax1.plot(data["Time"],data["ECG"])
-                # ax2.plot(data["Time"],data["Red"])
-                # plt.show()                           
+                print("Value error!")            
 
         # Write the output dataframe to a csv
         ecg_dataframe.to_csv("ecg_Features.csv")
@@ -530,7 +456,7 @@ ex: butter 4"""
         return
 
 def main():
-    cli = vs_cli()
+    cli = PrePro_Cli()
     cli.cmdloop()
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import antropy as ant
+from pandas import read_csv
 import scipy.stats as scst
 from scipy import signal as sg
 import scipy.integrate
@@ -101,7 +102,7 @@ def _pulse_arrival_time(data,fs,ppg_channel):
                     count+=1
                     break
                 else:
-                    # ppg peak index is higher than the current ecg peak,
+                    # ppg peak index is higher than the current ecg peak,`
                     # but larger than the next ecg peak. Move on to the next ECG peak
                     break
             else:    
@@ -114,6 +115,8 @@ def _pulse_arrival_time(data,fs,ppg_channel):
     # ax2.plot(ppg_signal)       
     
     return (total/count)/fs
+
+
 
 def _avg_time_interval(time,a_indices,b_indices):
     "Returns the average time interval between two points of interest"
