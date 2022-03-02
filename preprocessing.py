@@ -7,8 +7,8 @@ import numpy as np
 # FILTERS AND TRANSFORMS
 # ===============================================================================================================================
 
-def _lowpass(signal, order, atten, corner, sample_rate):
-    "Applies a lowpass filter of the specified paramaters to the provided signal"
+def _cheby(signal, order, atten, corner, sample_rate):
+    "Applies a Chebyshev Type II lowpass filter of the specified paramaters to the provided signal"
 
     # Create the filter coeffs. For now we'll stick to a Chebyshev II, but we can change the filter or paramaterize it later if we need to.
     sos = sg.cheby2(order, atten, corner, btype='lowpass', analog=False, output='sos',
@@ -25,16 +25,16 @@ def _cleanECG(signal, sample_rate):
 
 def _cleanPPG(signal, sample_rate):
     "Uses neurokit2 to clean a PPG signal. Also inverts signal to give Real PPG waveform"
-    return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')*(-1)
+    return nk.ppg_clean(signal, sampling_rate=sample_rate, method='elgendi')
 
 
 def _butter(signal, corner, sample_rate):
-    "Applies a Butterworth lowpass filter of the specified paramaters to the provided signal. Also inverts signal to give Real PPG waveform"
+    "Applies a Butterworth lowpass filter of the specified paramaters to the provided signal."
 
     b, a = sg.butter(5, corner/(sample_rate/2), 'low')
     
     # Apply the filter and return the output.
-    return sg.filtfilt(b, a, signal)*(-1)
+    return sg.filtfilt(b, a, signal)
 
 def _wavelet(signal):
     "Uses pywavelets to apply wavelet filtering"

@@ -38,16 +38,29 @@ def _load_txt(filename):
 def _load_csv(filename):
     "Loads the contents of the specified csv into a numpy matrix."
    
-    data = read_csv(filename, delimiter=",", header=CSV_HEADER_ROW) #Header in the csv files is the 16th row
+    data = read_csv(filename, delimiter=",", header=CSV_HEADER_ROW)
+
+    # Some ppg files have a header one row above
+    if not "Time" in data.iloc[[0]]:
+        data = read_csv(filename, delimiter=",", header=CSV_HEADER_ROW-1)
 
     return data
 
 def _get_sample_rate(data):
     "Calculates the sample rate from the time difference between samples."
 
-    # Since the time entries are converted from hex on load, we'll just observe the difference between the first two time entries.
-    period = (data['Time'][1] - data['Time'][0]) * TIME_UNIT
-    return 1 / period
+    # Since the time entries are converted from hex on load, we'll just observe the difference between the first two time entries.    
+    # period = (data['Time'][1] - data['Time'][0]) * TIME_UNIT
+    # return 1 / period
+
+    # That was too brittle apparently. Let's average the time differences to get the average sample rate.
+    total=0
+    for x in range(0,len(data['Time'])-2):
+        period=(data['Time'][x+1]-data['Time'][x])* TIME_UNIT
+        total+=period        
+
+    avg_period=total/((len(data['Time'])-1))
+    return 1/avg_period
 
 def _true_copy_arr(arr):
     "Makes a deep copy of a numpy array."
@@ -101,7 +114,6 @@ def _ecg_quality_pSQI(
     **kwargs
 ):
     """Power Spectrum Distribution of QRS Wave."""
-
     psd = signal_power(
         ecg_cleaned,
         sampling_rate=sampling_rate,
@@ -116,3 +128,8 @@ def _ecg_quality_pSQI(
     dem_power = psd.iloc[0][1]
 
     return num_power / dem_power
+
+def _get_ecg_peaks(signal,times,sample_rate):
+    peaks=nk.ecg_findpeaks(np.copy(signal),sampling_rate=sample_rate,method="elgendi2010")["ECG_R_Peaks"]
+    peak_times=times.iloc[peaks]
+    return peaks,peak_times
