@@ -399,8 +399,8 @@ ex: butter 4"""
                 elif real_values.empty:
                     print("No measured blood pressure found!")
                     num_missing+=1
-                    continue      
-
+                    continue 
+                     
                 # Extract different features based on the signal type.
                 if "ECG" in data.columns:                
                     print("ECG data file")                    
@@ -422,66 +422,72 @@ ex: butter 4"""
                         pulse = segment_dict[str(x)]["Signal"]
                         kSQI_arr[x - 1] = signal_utils._kSQI(pulse)
 
+                    #=============================================================
                     first_pulse=0
-                    #Get 10 consective (nice) pulses. Conceivably we could do this multiple times for each signal to increase the size of the data set.
                     for i in range(len(kSQI_arr)-9):
-                        if int(kSQI_arr[i]) > 6.0:
-                            if (kSQI_arr[i+1] > 6) & (kSQI_arr[i+2] > 6) & (kSQI_arr[i+2] > 6)& (kSQI_arr[i+3] > 6) & (kSQI_arr[i+4] > 6) &(kSQI_arr[i + 5] > 6) & (kSQI_arr[i+6] > 6) & (kSQI_arr[i+7] > 6)& (kSQI_arr[i+8] > 6) & (kSQI_arr[i+9] > 6):
-                                first_pulse=i
-                                last_pulse=first_pulse+9
-                                break
-                    else: 
-                        print("No set of nice pulses in that one. Skipping...")
-                        continue
-                    
-                    # Get the first index of the first nice pulse, and the last index of the last nice pulse
-                    start=segment_dict[str(first_pulse+1)]["Index"].iloc[0]
-                    end=segment_dict[str(last_pulse+1)]["Index"].iloc[-1]
+                        
+                        #Get 10 consective (nice) pulses.                       
+                        if ((kSQI_arr[i]>6) & (kSQI_arr[i+1] > 6) & (kSQI_arr[i+2] > 6) & (kSQI_arr[i+2] > 6) & (kSQI_arr[i+3] > 6) & (kSQI_arr[i+4] > 6) 
+                                & (kSQI_arr[i + 5] > 6) & (kSQI_arr[i+6] > 6) & (kSQI_arr[i+7] > 6) & (kSQI_arr[i+8] > 6) & (kSQI_arr[i+9] > 6)):
+                                
+                            first_pulse=i
+                            last_pulse=first_pulse+9
 
-                    # Truncate the whole dataset to the size of those 10 pulses
-                    data=data.truncate(before=start,after=end)
-                    #data=data.reset_index()
+                            # Get the first index of the first nice pulse, and the last index of the last nice pulse
+                            start=segment_dict[str(first_pulse+1)]["Index"].iloc[0]
+                            end=segment_dict[str(last_pulse+1)]["Index"].iloc[-1]
 
-                    # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
-                    # ax1.plot(data["Time"],data["ECG"])
-                    # ax2.plot(data["Time"],data["Red"])
-                    # plt.show()                     
+                            # Truncate the whole dataset to the size of those 10 pulses
+                            data_temp=data.truncate(before=start,after=end)
+                            #data=data.reset_index()
 
-                    # Mark the various components of the ECG
-                    [peaks,peak_times]=signal_utils._get_ecg_peaks(data["ECG"],data["Time"],sample_rate) 
-                    _, points = nk.ecg_delineate(data["ECG"], peaks, sampling_rate=sample_rate)
+                            # fig, (ax1, ax2) = plt.subplots(2, 1,sharex=True)
+                            # ax1.plot(data["Time"],data["ECG"])
+                            # ax2.plot(data["Time"],data["Red"])
+                            # plt.show()                     
 
-                    # Get features                     
-                    temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(peak_times)
-                    temp_df.at[0,'HRV']=feature_extraction._hrv(peak_times)
-                    temp_df.at[0,'RR']=feature_extraction._rr_interval(peaks,sample_rate)
-                    temp_df.at[0,'PAT']=feature_extraction._pulse_arrival_time(data,sample_rate,"Red")
-                    temp_df.at[0,'QRSd']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_S_Peaks"]) 
-                    temp_df.at[0,'PQ']=feature_extraction._avg_time_interval(data["Time"],points["ECG_P_Onsets"],points["ECG_Q_Peaks"]) 
-                    temp_df.at[0,'QT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_Q_Peaks"],points["ECG_T_Offsets"]) 
-                    temp_df.at[0,'JT']=feature_extraction._avg_time_interval(data["Time"],points["ECG_S_Peaks"],points["ECG_T_Peaks"]) 
-                    temp_df.at[0,'AUCqrs_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
-                    temp_df.at[0,'AUCqrs_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
-                    temp_df.at[0,'AUCjt_pos']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=0,upper=None),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
-                    temp_df.at[0,'AUCjt_neg']=feature_extraction._avg_area_under_curve(data["ECG"].clip(lower=None,upper=0),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
-                    temp_df.at[0,'ENT']=feature_extraction._sample_entropy(data["ECG"])
-                    temp_df.at[0,'SKEW']=feature_extraction._skew(data["ECG"])
-                    temp_df.at[0,'KURT']=feature_extraction._kurt(data["ECG"])                   
+                            # Mark the various components of the ECG
+                            [peaks,peak_times]=signal_utils._get_ecg_peaks(data_temp["ECG"],data_temp["Time"],sample_rate) 
+                            _, points = nk.ecg_delineate(data_temp["ECG"], peaks, sampling_rate=sample_rate)
 
-                    D=feature_extraction._decompose(data["ECG"])[0]
-                    for x in range(1,12):
-                        temp_df.at[0,'D'+str(x)]=D[x-1]
+                            # Get features                     
+                            temp_df.at[0,'HR']= feature_extraction._ecg_heart_rate(peak_times)
+                            temp_df.at[0,'HRV']=feature_extraction._hrv(peak_times)
+                            temp_df.at[0,'RR']=feature_extraction._rr_interval(peaks,sample_rate)
+                            temp_df.at[0,'PAT']=feature_extraction._pulse_arrival_time(data_temp,sample_rate,"Red")
+                            temp_df.at[0,'QRSd']=feature_extraction._avg_time_interval(data_temp["Time"],points["ECG_Q_Peaks"],points["ECG_S_Peaks"]) 
+                            temp_df.at[0,'PQ']=feature_extraction._avg_time_interval(data_temp["Time"],points["ECG_P_Onsets"],points["ECG_Q_Peaks"]) 
+                            temp_df.at[0,'QT']=feature_extraction._avg_time_interval(data_temp["Time"],points["ECG_Q_Peaks"],points["ECG_T_Offsets"]) 
+                            temp_df.at[0,'JT']=feature_extraction._avg_time_interval(data_temp["Time"],points["ECG_S_Peaks"],points["ECG_T_Peaks"]) 
+                            temp_df.at[0,'AUCqrs_pos']=feature_extraction._avg_area_under_curve(data_temp["ECG"].clip(lower=0,upper=None),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
+                            temp_df.at[0,'AUCqrs_neg']=feature_extraction._avg_area_under_curve(data_temp["ECG"].clip(lower=None,upper=0),points["ECG_Q_Peaks"],points["ECG_S_Peaks"])
+                            temp_df.at[0,'AUCjt_pos']=feature_extraction._avg_area_under_curve(data_temp["ECG"].clip(lower=0,upper=None),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
+                            temp_df.at[0,'AUCjt_neg']=feature_extraction._avg_area_under_curve(data_temp["ECG"].clip(lower=None,upper=0),points["ECG_S_Peaks"],points["ECG_T_Offsets"])
+                            temp_df.at[0,'ENT']=feature_extraction._sample_entropy(data_temp["ECG"])
+                            temp_df.at[0,'SKEW']=feature_extraction._skew(data_temp["ECG"])
+                            temp_df.at[0,'KURT']=feature_extraction._kurt(data_temp["ECG"])                   
 
-                    # Add the filename and true blood pressure to the temporary dataframe
-                    temp_df.at[0,'Filename']=file
-                    temp_df.at[0,'REAL_HR']=real_values.get('Real_HR').item()
-                    temp_df.at[0,'SBP']=real_values.get('SBP').item()
-                    temp_df.at[0,'DBP']=real_values.get('DBP').item()
+                            D=feature_extraction._decompose(data_temp["ECG"])[0]
+                            for x in range(1,12):
+                                temp_df.at[0,'D'+str(x)]=D[x-1]
 
-                    # Append to output dataframe
-                    ecg_dataframe=ecg_dataframe.append(temp_df)
-                    num_ecg+=1
+                            # Add the filename and true blood pressure to the temporary dataframe
+                            temp_df.at[0,'Filename']=file
+                            temp_df.at[0,'REAL_HR']=real_values.get('Real_HR').item()
+                            temp_df.at[0,'SBP']=real_values.get('SBP').item()
+                            temp_df.at[0,'DBP']=real_values.get('DBP').item()                            
+                            
+                            # Append to output dataframe
+                            ecg_dataframe=ecg_dataframe.append(temp_df)
+                            num_ecg+=1
 
+                            # Look for next 10 pulses
+                            i=i+9 # It'll get incremented again by the loop 
+                        else:                            
+                            continue
+                        
+                #=============================================================
+                
                 elif "Green" in data.columns or "GREEN" in data.columns:
                     print("PPG data file") 
                     
