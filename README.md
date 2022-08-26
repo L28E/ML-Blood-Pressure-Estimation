@@ -13,46 +13,15 @@ At a high-level, our machine learning workflow was as follows:
 - Perform calculations on the signal to extract potentially relevant information, hence feature extraction
 - Determine which features are the best predictors, hence feature selection
 - Train, test and optimize our machine learning models. There are a lot of "knobs and dials" so to speak, so improving prediction accuracy was an iterative process
- 
+
+Pre-processing and feature extraction for ECG and PPG are found in [ECG Feature Extraction](/ECG%20Feature%20Extraction/) and [PPG Feature Extraction](/PPG%20Feature%20Extraction/) respectively
+
+
 Each team member explored a different combination of signal type and machine learning model, resulting in 4 permutations of the workflow:
-- [ECG Features with ANN](#ECG-Features-with-ANN)
-- [ECG Features with Random Forest Regression](#ECG-Features-with-Random-Forest-Regression)
-- [PPG Features with ANN](#PPG-Features-with-ANN)
-- [PPG Features with Random Forest Regression](#PPG-Features-with-Random-Forest-Regression)
-
-# ECG Feature Extraction
-
-## vital_signal_cli.py
-A command line interface for preparing signals for further analysis. Underlying functions are split into `signal_utils.py`, `preprocessing.py`, and `feature_extraction.py`. 
-
-### signal_utils.py
-Utilities and helper functions to prepare the signal  
-
-### preprocessing.py
-Functions which apply transformations to get more 'shapely' ECG and PPG signals
-
-### feature_extraction.py
-Functions which extract values to be used in ML analysis
-
-# PPG Feature Extraction
-
-TBD
-
-# ECG Features with ANN
-
-TBD
-
-# ECG Features with Random Forest Regression
-
-TBD
-
-# PPG Features with ANN
-
-TBD
-
-# PPG Features with Random Forest Regression
-
-TBD
+- [ECG Features with ANN](/ECG%20Features%20w%20ANN/)
+- [ECG Features with Random Forest Regression](/ECG%20Features%20w%20Random%20Forest%20Regression/)
+- [PPG Features with ANN](/PPG%20Features%20w%20ANN/)
+- [PPG Features with Random Forest Regression](/PPG%20Features%20w%20Random%20Forest%20Regression/)
 
 # Dependencies
 * numpy, pandas, and scipy (for manipulating large data structures) 
